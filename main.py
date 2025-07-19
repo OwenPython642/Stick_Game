@@ -1,5 +1,7 @@
 import random
 import os
+import tkinter as tk
+from tkinter import messagebox
 
 def cls():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -105,7 +107,13 @@ def mcts(root_sticks, itermax=1000, time_limit=1.0):
 
 def ia_simple(tab):
     n = tab.count('|')
-    return mcts(n)
+    # Stratégie gagnante du jeu de Nim
+    optimal = n % 4
+    if optimal == 0:
+        # Si on ne peut pas gagner directement, on utilise MCTS pour choisir le meilleur coup possible
+        return mcts(n, itermax=5000, time_limit=2.0)
+    else:
+        return optimal
 
 def retirer_batonnets(tab, nb):
     count = 0
@@ -133,7 +141,68 @@ def boucle_de_jeu(initial=21, solo=False):
     afficher_batonnets(tab)
     print(f"Game over. Le perdant est {perdant} !")
 
+class StickGameGUI:
+    def __init__(self, root, initial=21, solo=False):
+        self.root = root
+        self.solo = solo
+        self.initial = initial
+        self.tab = ['|' for _ in range(initial)]
+        self.tour_joueur = True
+        self.root.title("Jeu des Bâtonnets")
+        self.info = tk.Label(root, text="", font=("Arial", 14))
+        self.info.pack(pady=10)
+        self.sticks_label = tk.Label(root, text="", font=("Courier", 18))
+        self.sticks_label.pack(pady=10)
+        self.buttons = []
+        frame = tk.Frame(root)
+        frame.pack()
+        for i in range(1, 4):
+            btn = tk.Button(frame, text=f"Retirer {i}", command=lambda x=i: self.retirer(x), width=10)
+            btn.grid(row=0, column=i-1, padx=5)
+            self.buttons.append(btn)
+        self.update_display()
+
+    def update_display(self):
+        n = self.tab.count('|')
+        self.sticks_label.config(text=" ".join(self.tab))
+        if n == 0:
+            perdant = "vous" if not self.tour_joueur else ("IA" if self.solo else "Joueur 2")
+            self.info.config(text=f"Game over. Le perdant est {perdant} !")
+            for btn in self.buttons:
+                btn.config(state="disabled")
+            return
+        joueur = "Votre tour" if self.tour_joueur else ("Tour de l'IA" if self.solo else "Tour du joueur 2")
+        self.info.config(text=f"Bâtonnets restants : {n} | {joueur}")
+        for btn in self.buttons:
+            btn.config(state="normal" if n >= int(btn['text'][-1]) else "disabled")
+        if not self.tour_joueur and self.solo and n > 0:
+            self.root.after(800, self.ia_play)
+
+    def retirer(self, nb):
+        if nb > self.tab.count('|'):
+            return
+        retirer_batonnets(self.tab, nb)
+        self.tour_joueur = not self.tour_joueur
+        self.update_display()
+
+    def ia_play(self):
+        retrait = ia_simple(self.tab)
+        self.retirer(retrait)
+
+
+def main_tk():
+    root = tk.Tk()
+    mode = tk.simpledialog.askstring("Mode", "Mode: 1=2 joueurs, 2=solo vs IA?")
+    solo = (mode or '').strip() == '2'
+    StickGameGUI(root, solo=solo)
+    root.mainloop()
+
 if __name__ == '__main__':
-    mode = input("Mode: 1=2 joueurs, 2=solo vs IA? ")
-    solo = mode.strip() == '2'
-    boucle_de_jeu(solo=solo)
+    try:
+        import tkinter.simpledialog
+        main_tk()
+    except Exception as e:
+        print("Erreur Tkinter, retour au mode console :", e)
+        mode = input("Mode: 1=2 joueurs, 2=solo vs IA? ")
+        solo = mode.strip() == '2'
+        boucle_de_jeu(solo=solo)
