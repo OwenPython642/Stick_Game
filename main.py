@@ -141,42 +141,50 @@ def boucle_de_jeu(initial=21, solo=False):
     afficher_batonnets(tab)
     print(f"Game over. Le perdant est {perdant} !")
 
-class StickGameGUI:
-    def __init__(self, root, initial=21, solo=False):
-        self.root = root
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QMessageBox, QInputDialog
+)
+import sys
+
+class StickGameQt(QWidget):
+    def __init__(self, initial=21, solo=False):
+        super().__init__()
         self.solo = solo
         self.initial = initial
         self.tab = ['|' for _ in range(initial)]
         self.tour_joueur = True
-        self.root.title("Jeu des Bâtonnets")
-        self.info = tk.Label(root, text="", font=("Arial", 14))
-        self.info.pack(pady=10)
-        self.sticks_label = tk.Label(root, text="", font=("Courier", 18))
-        self.sticks_label.pack(pady=10)
+        self.setWindowTitle("Jeu des Bâtonnets")
+        self.info = QLabel("", self)
+        self.sticks_label = QLabel("", self)
         self.buttons = []
-        frame = tk.Frame(root)
-        frame.pack()
+        btn_layout = QHBoxLayout()
         for i in range(1, 4):
-            btn = tk.Button(frame, text=f"Retirer {i}", command=lambda x=i: self.retirer(x), width=10)
-            btn.grid(row=0, column=i-1, padx=5)
+            btn = QPushButton(f"Retirer {i}", self)
+            btn.clicked.connect(lambda checked, x=i: self.retirer(x))
+            btn_layout.addWidget(btn)
             self.buttons.append(btn)
+        layout = QVBoxLayout()
+        layout.addWidget(self.info)
+        layout.addWidget(self.sticks_label)
+        layout.addLayout(btn_layout)
+        self.setLayout(layout)
         self.update_display()
 
     def update_display(self):
         n = self.tab.count('|')
-        self.sticks_label.config(text=" ".join(self.tab))
+        self.sticks_label.setText(" ".join(self.tab))
         if n == 0:
             perdant = "vous" if not self.tour_joueur else ("IA" if self.solo else "Joueur 2")
-            self.info.config(text=f"Game over. Le perdant est {perdant} !")
+            self.info.setText(f"Game over. Le perdant est {perdant} !")
             for btn in self.buttons:
-                btn.config(state="disabled")
+                btn.setEnabled(False)
             return
         joueur = "Votre tour" if self.tour_joueur else ("Tour de l'IA" if self.solo else "Tour du joueur 2")
-        self.info.config(text=f"Bâtonnets restants : {n} | {joueur}")
+        self.info.setText(f"Bâtonnets restants : {n} | {joueur}")
         for btn in self.buttons:
-            btn.config(state="normal" if n >= int(btn['text'][-1]) else "disabled")
+            btn.setEnabled(n >= int(btn.text()[-1]))
         if not self.tour_joueur and self.solo and n > 0:
-            self.root.after(800, self.ia_play)
+            QTimer.singleShot(800, self.ia_play)
 
     def retirer(self, nb):
         if nb > self.tab.count('|'):
@@ -189,20 +197,21 @@ class StickGameGUI:
         retrait = ia_simple(self.tab)
         self.retirer(retrait)
 
+from PyQt5.QtCore import QTimer
 
-def main_tk():
-    root = tk.Tk()
-    mode = tk.simpledialog.askstring("Mode", "Mode: 1=2 joueurs, 2=solo vs IA?")
+def main_qt():
+    app = QApplication(sys.argv)
+    mode, ok = QInputDialog.getText(None, "Mode", "Mode: 1=2 joueurs, 2=solo vs IA?")
     solo = (mode or '').strip() == '2'
-    StickGameGUI(root, solo=solo)
-    root.mainloop()
+    window = StickGameQt(solo=solo)
+    window.show()
+    sys.exit(app.exec_())
 
 if __name__ == '__main__':
     try:
-        import tkinter.simpledialog
-        main_tk()
+        main_qt()
     except Exception as e:
-        print("Erreur Tkinter, retour au mode console :", e)
+        print("Erreur PyQt5, retour au mode console :", e)
         mode = input("Mode: 1=2 joueurs, 2=solo vs IA? ")
         solo = mode.strip() == '2'
         boucle_de_jeu(solo=solo)
